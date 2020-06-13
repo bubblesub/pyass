@@ -4,6 +4,14 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
+libs = ["libass.dll"]
+data_libs = []
+
+if set(["bdist_wheel", "--plat-name", "win_amd64"]) <= set(sys.argv) or (
+    os.name == "nt" and all([os.path.exists(f) for f in libs])
+):
+    data_libs = [("Scripts", libs)]
+
 setup(
     author="Luni-4",
     author_email="luni-4@hotmail.it",
@@ -24,5 +32,4 @@ setup(
     packages=find_packages(),
     package_dir={"ass": "ass"},
     package_data={"ass": ["data/*", "../COPYING", "../COPYING.LESSER"]},
-    install_requires=install_packages,
 )

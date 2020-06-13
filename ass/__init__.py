@@ -1,5 +1,3 @@
-"""Bindings for Libass
-"""
 #   © 2019 Luni-4 <luni-4@hotmail.it>
 #   https://github.com/bubblesub/pyass
 #
@@ -16,10 +14,23 @@
 #   You should have received a copy of the GNU Lesser General Public License
 #   along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import ctypes
+from collections import namedtuple
+
+import numpy
+
 from .enums import *
-from .libass import *
+from .libass import ASS_Event, ASS_Image, ASS_Style, ass_library_version
+from .library import ASS_Library
+from .renderer import ASS_Renderer
+from .track import ASS_Track
 
 __all__ = [
+    "get_version_info",
+    "get_version",
+    "ASS_Library",
+    "ASS_Renderer",
+    "ASS_Track",
     "ASS_HINTING_NONE",
     "ASS_HINTING_LIGHT",
     "ASS_HINTING_NORMAL",
@@ -56,3 +67,60 @@ __all__ = [
     "YCBCR_FCC_TV",
     "YCBCR_FCC_PC",
 ]
+
+
+def get_version_info():
+    """Return the LIBASS_VERSION as a tuple.
+    """
+
+    def hex_prefix(n):
+        return int(hex(n)[2:])
+
+    VersionInfo = namedtuple("VersionInfo", ("major", "minor", "micro"))
+    n = ass_library_version()
+    major, r = divmod(n, 1 << 28)
+    minor, r = divmod(r, 1 << 20)
+    micro, bump = divmod(r, 1 << 12)
+    return VersionInfo(hex_prefix(major), hex_prefix(minor), hex_prefix(micro))
+
+
+def get_version():
+    """Return the LIBASS_VERSION as a string.
+    """
+    version_info = get_version_info()
+    return ".".join(str(e) for e in version_info)
+
+
+def _get_name(struct):
+    return ctypes.cast(struct.Name, ctypes.c_char_p).value
+
+
+ASS_Style.name = property(_get_name)
+
+
+def _get_effect(struct):
+    return ctypes.cast(struct.Effect, ctypes.c_char_p).value
+
+
+def _get_text(struct):
+    return ctypes.cast(struct.Text, ctypes.c_char_p).value
+
+
+ASS_Event.name = property(_get_name)
+ASS_Event.effect = property(_get_effect)
+ASS_Event.text = property(_get_text)
+
+
+def _get_image(ass_image):
+    return numpy.ctypeslib.as_array(
+        ass_image.bitmap, shape=(ass_image.stride * ass_image.h,)
+    )
+
+
+def _get_next_image(ass_image):
+    next_img = ass_image.next
+    return None if not next_img else next_img[0]
+
+
+ASS_Image.image = property(_get_image)
+ASS_Image.next_image = property(_get_next_image)

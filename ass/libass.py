@@ -4,12 +4,12 @@
 import ctypes
 import os
 
-from get_library import get_library
+from .get_library import get_library
 
 lib = get_library(
     "ass",
-    win_format="{}.dll",
-    win64_format=["{}-x64.dll", "{}.dll"],
+    win_format="lib{}.dll",
+    win64_format=["lib{}.dll"],
     win_class_name="WinDLL",
 )
 
@@ -57,8 +57,8 @@ class ASS_Style(ctypes.Structure):
 
 
 ASS_Style._fields_ = [
-    ("Name", ctypes.POINTER(ctypes.c_char)),
-    ("FontName", ctypes.POINTER(ctypes.c_char)),
+    ("Name", ctypes.c_char_p),
+    ("FontName", ctypes.c_char_p),
     ("FontSize", ctypes.c_double),
     ("PrimaryColour", ctypes.c_uint32),
     ("SecondaryColour", ctypes.c_uint32),
@@ -96,12 +96,12 @@ ASS_Event._fields_ = [
     ("ReadOrder", ctypes.c_int32),
     ("Layer", ctypes.c_int32),
     ("Style", ctypes.c_int32),
-    ("Name", ctypes.POINTER(ctypes.c_char)),
+    ("Name", ctypes.c_char_p),
     ("MarginL", ctypes.c_int32),
     ("MarginR", ctypes.c_int32),
     ("MarginV", ctypes.c_int32),
-    ("Effect", ctypes.POINTER(ctypes.c_char)),
-    ("Text", ctypes.POINTER(ctypes.c_char)),
+    ("Effect", ctypes.c_char_p),
+    ("Text", ctypes.c_char_p),
     ("render_priv", ctypes.POINTER(ASS_RenderPriv)),
 ]
 
@@ -117,8 +117,8 @@ ASS_Track._fields_ = [
     ("max_events", ctypes.c_int32),
     ("styles", ctypes.POINTER(ASS_Style)),
     ("events", ctypes.POINTER(ASS_Event)),
-    ("style_format", ctypes.POINTER(ctypes.c_char)),
-    ("event_format", ctypes.POINTER(ctypes.c_char)),
+    ("style_format", ctypes.c_char_p),
+    ("event_format", ctypes.c_char_p),
     ("track_type", ctypes.c_int),
     ("PlayResX", ctypes.c_int32),
     ("PlayResY", ctypes.c_int32),
@@ -126,10 +126,10 @@ ASS_Track._fields_ = [
     ("WrapStyle", ctypes.c_int32),
     ("ScaledBorderAndShadow", ctypes.c_int32),
     ("Kerning", ctypes.c_int32),
-    ("Language", ctypes.POINTER(ctypes.c_char)),
+    ("Language", ctypes.c_char_p),
     ("YCbCrMatrix", ctypes.c_int),
     ("default_style", ctypes.c_int32),
-    ("name", ctypes.POINTER(ctypes.c_char)),
+    ("name", ctypes.c_char_p),
     ("library", ctypes.POINTER(ASS_Library)),
     ("parser_priv", ctypes.POINTER(ASS_ParserPriv)),
 ]
@@ -143,7 +143,7 @@ ASS_Image._fields_ = [
     ("w", ctypes.c_int32),
     ("h", ctypes.c_int32),
     ("stride", ctypes.c_int32),
-    ("bitmap", ctypes.POINTER(ctypes.c_ubyte)),
+    ("bitmap", ctypes.POINTER(ctypes.c_uint8)),
     ("color", ctypes.c_uint32),
     ("dst_x", ctypes.c_int32),
     ("dst_y", ctypes.c_int32),
@@ -156,7 +156,7 @@ ASS_Image._fields_ = [
 Callback = FUNCTYPE(
     ctypes.c_void_p,
     ctypes.c_int32,
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
     ctypes.c_int32,
     ctypes.c_void_p,
 )
@@ -184,7 +184,7 @@ ass_set_fonts_dir = lib.ass_set_fonts_dir
 ass_set_fonts_dir.restype = None
 ass_set_fonts_dir.argtypes = [
     ctypes.POINTER(ASS_Library),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
 ]
 
 # Whether fonts should be extracted from track data.
@@ -199,7 +199,7 @@ ass_set_style_overrides = lib.ass_set_style_overrides
 ass_set_style_overrides.restype = None
 ass_set_style_overrides.argtypes = [
     ctypes.POINTER(ASS_Library),
-    ctypes.POINTER(ctypes.POINTER(ctypes.c_char)),
+    ctypes.POINTER(ctypes.c_char_p),
 ]
 
 # Explicitly process style overrides for a track.
@@ -338,10 +338,10 @@ ass_set_fonts = lib.ass_set_fonts
 ass_set_fonts.restype = None
 ass_set_fonts.argtypes = [
     ctypes.POINTER(ASS_Renderer),
-    ctypes.POINTER(ctypes.c_char),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
+    ctypes.c_char_p,
     ctypes.c_int32,
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
     ctypes.c_int32,
 ]
 
@@ -433,7 +433,7 @@ ass_process_data = lib.ass_process_data
 ass_process_data.restype = None
 ass_process_data.argtypes = [
     ctypes.POINTER(ASS_Track),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
     ctypes.c_int32,
 ]
 
@@ -443,7 +443,7 @@ ass_process_codec_private = lib.ass_process_codec_private
 ass_process_codec_private.restype = None
 ass_process_codec_private.argtypes = [
     ctypes.POINTER(ASS_Track),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
     ctypes.c_int32,
 ]
 
@@ -457,7 +457,7 @@ ass_process_chunk = lib.ass_process_chunk
 ass_process_chunk.restype = None
 ass_process_chunk.argtypes = [
     ctypes.POINTER(ASS_Track),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
     ctypes.c_int32,
     ctypes.c_int64,
     ctypes.c_int64,
@@ -479,8 +479,8 @@ ass_read_file = lib.ass_read_file
 ass_read_file.restype = ctypes.POINTER(ASS_Track)
 ass_read_file.argtypes = [
     ctypes.POINTER(ASS_Library),
-    ctypes.POINTER(ctypes.c_char),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
+    ctypes.c_char_p,
 ]
 
 # Read subtitles from memory.
@@ -488,9 +488,9 @@ ass_read_memory = lib.ass_read_memory
 ass_read_memory.restype = ctypes.POINTER(ASS_Track)
 ass_read_memory.argtypes = [
     ctypes.POINTER(ASS_Library),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
     ctypes.c_int32,
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
 ]
 
 # Read styles from file into already initialized track.
@@ -498,8 +498,8 @@ ass_read_styles = lib.ass_read_styles
 ass_read_styles.restype = ctypes.c_int32
 ass_read_styles.argtypes = [
     ctypes.POINTER(ASS_Track),
-    ctypes.POINTER(ctypes.c_char),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
+    ctypes.c_char_p,
 ]
 
 # Add a memory font.
@@ -507,8 +507,8 @@ ass_add_font = lib.ass_add_font
 ass_add_font.restype = None
 ass_add_font.argtypes = [
     ctypes.POINTER(ASS_Library),
-    ctypes.POINTER(ctypes.c_char),
-    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_char_p,
+    ctypes.c_char_p,
     ctypes.c_int32,
 ]
 
