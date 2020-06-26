@@ -1,0 +1,123 @@
+name: deploy-binaries
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+
+  create-binaries:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch: 1
+
+    - name: Install nasm
+      run: |
+        $NASM_VERSION="2.14.02"
+        $LINK="https://www.nasm.us/pub/nasm/releasebuilds/$NASM_VERSION/win64"
+        curl --ssl-no-revoke -LO "$LINK/nasm-$NASM_VERSION-win64.zip"
+        7z e -y "nasm-$NASM_VERSION-win64.zip" -o"C:\nasm"
+        echo "::add-path::C:\nasm"
+
+    - name: Set msys2 environment variables
+      run: |
+        echo "::add-path::C:/msys64/usr/bin"
+        echo "::add-path::C:/msys64/mingw64/bin"
+
+    - name: First msys2 run
+      run: |
+        bash -lc 'exit'
+
+    - name: Install Python 3.7 version
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.7'
+        architecture: 'x64'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel
+
+    - name: Install meson and ninja
+      run: |
+        pip install meson ninja
+
+    - name: Install build packages
+      run: |
+        pacman -S --needed --ask=20 --noconfirm mingw-w64-x86_64-fribidi `
+                                                mingw-w64-x86_64-harfbuzz
+    - name: Build libass
+      run: |
+        $LIBASS_REPO = "https://github.com/Luni-4/libass"
+        git clone --depth 1 -b bubblesub-libass $LIBASS_REPO libass-build
+        cd libass-build
+        meson build `
+              --buildtype release `
+              -Ddirectwrite=enabled `
+              -Dharfbuzz:default_library=static `
+              -Dlibpng:default_library=static `
+              -Dzlib:default_library=static `
+              -Dfribidi:default_library=static `
+              -Dfreetype:default_library=static
+        ninja -C build
+
+    - name: Create the libass zip
+      run: |
+        Move-Item -Path libass-build\build\libass\libass.dll -Destination .
+        7z a libass.zip libass.dll
+
+    - name: Upload libass zip
+      uses: actions/upload-artifact@v2
+      with:
+        path: libass.zip
+
+  deploy-binaries:
+
+    needs: create-binaries
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Download libass zip
+      uses: actions/download-artifact@v2
+      with:
+        name: artifact
+
+    - name: Install Python 3.7 version
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.7'
+        architecture: 'x64'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel twine
+
+    - name: Release source code on Linux
+      run: |
+        python setup.py sdist
+
+    - name: Build Windows wheel
+      run: |
+        unzip libass.zip
+        python setup.py bdist_wheel --plat-name win_amd64 --python-tag cp37
+
+    - name: Twine check
+      run: |
+        python -m twine check dist/*
+
+    - name: Publish distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.pypi_token }}
